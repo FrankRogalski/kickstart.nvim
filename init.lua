@@ -73,8 +73,14 @@ require('lazy').setup({
   'tpope/vim-fugitive',
   'tpope/vim-rhubarb',
 
+  'jose-elias-alvarez/null-ls.nvim',
+  'LhKipp/nvim-nu',
+
   -- Detect tabstop and shiftwidth automatically
   'tpope/vim-sleuth',
+
+  'github/copilot.vim',
+  'dccsillag/magma-nvim',
 
   -- NOTE: This is where your plugins related to LSP can be installed.
   --  The configuration is done below. Search for lspconfig to find it below.
@@ -212,14 +218,14 @@ require('lazy').setup({
     },
   },
 
-  {
-    -- Add indentation guides even on blank lines
-    'lukas-reineke/indent-blankline.nvim',
-    -- Enable `lukas-reineke/indent-blankline.nvim`
-    -- See `:help ibl`
-    main = 'ibl',
-    opts = {},
-  },
+  -- 
+  --  -- Add indentation guides even on blank lines
+  --  'lukas-reineke/indent-blankline.nvim',
+  --  -- Enable `lukas-reineke/indent-blankline.nvim`
+  --  -- See `:help ibl`
+  --  main = 'ibl',
+  --  opts = {},
+  -- ,
 
   -- "gc" to comment visual regions/lines
   { 'numToStr/Comment.nvim', opts = {} },
@@ -278,6 +284,8 @@ vim.o.hlsearch = false
 
 -- Make line numbers default
 vim.wo.number = true
+vim.o.relativenumber=true
+vim.o.tabstop = 4
 
 -- Enable mouse mode
 vim.o.mouse = 'a'
@@ -326,6 +334,29 @@ vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next diagnos
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Open floating diagnostic message' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostics list' })
 
+-- Set Escape to exit terminal mode
+vim.keymap.set('t', '<Esc>', '<C-\\><C-n>', {silent = true})
+
+local function CaptureCommandOutput(input)
+    vim.cmd('redir @"')
+    vim.cmd(input.args)
+    vim.cmd('redir END')
+
+    -- Create a new buffer and insert the output
+    vim.cmd('enew')
+    vim.cmd('normal! "0p')
+
+    -- If the command is external, delete the first five lines
+    if input.args:sub(1, 1) == "!" then
+        vim.cmd('1,5d')
+    end
+
+    -- Set the buffer's name to the command
+    vim.api.nvim_buf_set_name(0, 'Command: ' .. input.args)
+end
+
+vim.api.nvim_create_user_command('Capture', CaptureCommandOutput, { nargs = '+' })
+
 -- [[ Highlight on yank ]]
 -- See `:help vim.highlight.on_yank()`
 local highlight_group = vim.api.nvim_create_augroup('YankHighlight', { clear = true })
@@ -349,6 +380,18 @@ require('telescope').setup {
     },
   },
 }
+
+local null_ls = require("null-ls")
+
+null_ls.setup({
+  sources = {
+        null_ls.builtins.formatting.stylua,
+        null_ls.builtins.diagnostics.eslint,
+        null_ls.builtins.completion.spell,
+    },
+})
+
+require('nu').setup()
 
 -- Enable telescope fzf native, if installed
 pcall(require('telescope').load_extension, 'fzf')
@@ -423,7 +466,7 @@ vim.keymap.set('n', '<leader>sr', require('telescope.builtin').resume, { desc = 
 vim.defer_fn(function()
   require('nvim-treesitter.configs').setup {
     -- Add languages to be installed here that you want installed for treesitter
-    ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash' },
+    ensure_installed = "all",
 
     -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
     auto_install = false,
