@@ -78,9 +78,11 @@ require('lazy').setup({
 
   -- Detect tabstop and shiftwidth automatically
   'tpope/vim-sleuth',
+  'saadparwaiz1/cmp_luasnip',
+  'L3MON4D3/LuaSnip',
 
   'github/copilot.vim',
---  'dccsillag/magma-nvim',
+  'dccsillag/magma-nvim',
 
   -- NOTE: This is where your plugins related to LSP can be installed.
   --  The configuration is done below. Search for lspconfig to find it below.
@@ -94,7 +96,7 @@ require('lazy').setup({
 
       -- Useful status updates for LSP
       -- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
-      { 'j-hui/fidget.nvim', opts = {} },
+      { 'j-hui/fidget.nvim',       opts = {} },
 
       -- Additional lua configuration, makes nvim stuff amazing!
       'folke/neodev.nvim',
@@ -116,7 +118,7 @@ require('lazy').setup({
   },
 
   -- Useful plugin to show you pending keybinds.
-  { 'folke/which-key.nvim', opts = {} },
+  { 'folke/which-key.nvim',  opts = {} },
   {
     -- Adds git related signs to the gutter, as well as utilities for managing changes
     'lewis6991/gitsigns.nvim',
@@ -215,7 +217,7 @@ require('lazy').setup({
     },
   },
 
-  -- 
+  --
   --  -- Add indentation guides even on blank lines
   --  'lukas-reineke/indent-blankline.nvim',
   --  -- Enable `lukas-reineke/indent-blankline.nvim`
@@ -281,7 +283,7 @@ vim.o.hlsearch = false
 
 -- Make line numbers default
 vim.wo.number = true
-vim.o.relativenumber=true
+vim.o.relativenumber = true
 vim.o.tabstop = 4
 
 -- Enable mouse mode
@@ -332,24 +334,24 @@ vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Open float
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostics list' })
 
 -- Set Escape to exit terminal mode
-vim.keymap.set('t', '<Esc>', '<C-\\><C-n>', {silent = true})
+vim.keymap.set('t', '<Esc>', '<C-\\><C-n>', { silent = true })
 
 local function CaptureCommandOutput(input)
-    vim.cmd('redir @"')
-    vim.cmd(input.args)
-    vim.cmd('redir END')
+  vim.cmd('redir @"')
+  vim.cmd(input.args)
+  vim.cmd('redir END')
 
-    -- Create a new buffer and insert the output
-    vim.cmd('enew')
-    vim.cmd('normal! "0p')
+  -- Create a new buffer and insert the output
+  vim.cmd('enew')
+  vim.cmd('normal! "0p')
 
-    -- If the command is external, delete the first five lines
-    if input.args:sub(1, 1) == "!" then
-        vim.cmd('1,5d')
-    end
+  -- If the command is external, delete the first five lines
+  if input.args:sub(1, 1) == "!" then
+    vim.cmd('1,5d')
+  end
 
-    -- Set the buffer's name to the command
-    vim.api.nvim_buf_set_name(0, 'Command: ' .. input.args)
+  -- Set the buffer's name to the command
+  vim.api.nvim_buf_set_name(0, 'Command: ' .. input.args)
 end
 
 vim.api.nvim_create_user_command('Capture', CaptureCommandOutput, { nargs = '+' })
@@ -382,10 +384,10 @@ local null_ls = require("null-ls")
 
 null_ls.setup({
   sources = {
-        null_ls.builtins.formatting.stylua,
-        null_ls.builtins.diagnostics.eslint,
-        null_ls.builtins.completion.spell,
-    },
+    null_ls.builtins.formatting.stylua,
+    null_ls.builtins.diagnostics.eslint,
+    null_ls.builtins.completion.spell,
+  },
 })
 
 require('nu').setup()
@@ -468,8 +470,6 @@ vim.defer_fn(function()
     -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
     auto_install = false,
     -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
-    auto_install = false,
-    -- Install languages synchronously (only applied to `ensure_installed`)
     sync_install = false,
     -- List of parsers to ignore installing
     ignore_install = {},
@@ -613,9 +613,10 @@ local servers = {
   -- clangd = {},
   -- gopls = {},
   -- pyright = {},
-  -- rust_analyzer = {},
+  rust_analyzer = {},
   -- tsserver = {},
   -- html = { filetypes = { 'html', 'twig', 'hbs'} },
+  pylsp = {},
 
   lua_ls = {
     Lua = {
@@ -650,6 +651,47 @@ mason_lspconfig.setup_handlers {
       filetypes = (servers[server_name] or {}).filetypes,
     }
   end,
+}
+local luasnip = require 'luasnip'
+local cmp = require 'cmp'
+cmp.setup {
+  snippet = {
+    expand = function(args)
+      luasnip.lsp_expand(args.body)
+    end,
+  },
+  mapping = cmp.mapping.preset.insert({
+    ['<C-u>'] = cmp.mapping.scroll_docs(-4), -- Up
+    ['<C-d>'] = cmp.mapping.scroll_docs(4),  -- Down
+    -- C-b (back) C-f (forward) for snippet placeholder navigation.
+    ['<C-Space>'] = cmp.mapping.complete(),
+    ['<CR>'] = cmp.mapping.confirm {
+      behavior = cmp.ConfirmBehavior.Replace,
+      select = true,
+    },
+    ['<Tab>'] = cmp.mapping(function(fallback)
+      if cmp.visible() then
+        cmp.select_next_item()
+      elseif luasnip.expand_or_jumpable() then
+        luasnip.expand_or_jump()
+      else
+        fallback()
+      end
+    end, { 'i', 's' }),
+    ['<S-Tab>'] = cmp.mapping(function(fallback)
+      if cmp.visible() then
+        cmp.select_prev_item()
+      elseif luasnip.jumpable(-1) then
+        luasnip.jump(-1)
+      else
+        fallback()
+      end
+    end, { 'i', 's' }),
+  }),
+  sources = {
+    { name = 'nvim_lsp' },
+    { name = 'luasnip' },
+  },
 }
 
 -- The line beneath this is called `modeline`. See `:help modeline`
